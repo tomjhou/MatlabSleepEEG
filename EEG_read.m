@@ -6,8 +6,8 @@
 
 function [EEG_data, EMG_data, adfreq1, DateTime, OpenedFileName] = EEG_read()
 
-    EEG_CHANNEL_LEFT = 2;  % Will also accept chan 1
-    EEG_CHANNEL_RIGHT = 4; % Will also accept chan 3
+    EEG_CHANNEL_LEFT = 2;  % This is ignored.
+    EEG_CHANNEL_RIGHT = 4; % This is the highest channel to start looking. Will search descending until data is found.
     EMG_CHANNEL = 6;       % Will also accept chan 5
 
     % OpenedFileName = '2016-1203-1608_Box1_Ephys.plx';
@@ -16,13 +16,14 @@ function [EEG_data, EMG_data, adfreq1, DateTime, OpenedFileName] = EEG_read()
     [FileName2,PathName2,~] = uigetfile('*.plx', 'MultiSelect','on');
     OpenedFileName = [PathName2, FileName2];
 
+    EEG_data = [];
+    EMG_data = [];
+    adfreq1 = 0;
+    DateTime = [];
+
     if FileName2 == 0
         % User did not select a file
         fprintf('No file selected\n');
-        EEG_data = [];
-        EMG_data = [];
-        adfreq1 = 0;
-        DateTime = [];
         return
     end
     
@@ -37,44 +38,48 @@ function [EEG_data, EMG_data, adfreq1, DateTime, OpenedFileName] = EEG_read()
     [n, channel_ID] = plx_ad_chanmap(OpenedFileName);
 
     if channel_ID(1) == 0
-        % Channel map starts with channel 0 (not used), so we have to add one to all
-        % indexes.
-        offset = 1;
+        % Channel map starts with channel 0 (not used), so we have to add one to
+        % channel ID to get map position.
     else
         offset = 0;
     end
     
     % get counts of # of events for spike, waveform, event, and continuous data channels
-    [tscounts, wfcounts, evcounts, continuous_counts] = plx_info(OpenedFileName,1);
+    [~, ~, ~, continuous_counts] = plx_info(OpenedFileName,1);
 
-    haveEMG = continuous_counts(EMG_CHANNEL + offset) > 0;
-    haveLeft = continuous_counts(EEG_CHANNEL_LEFT + offset) > 0;
-    haveRight = continuous_counts(EEG_CHANNEL_RIGHT + offset) > 0;
-
-    if haveRight
+    for x = EEG_CHANNEL_RIGHT:-1:1
         % Read all data from EEG and EMG channels
-        numPoints = continuous_counts(EEG_CHANNEL_RIGHT);
-        [adfreq1, n1, EEG_data] = plx_ad_span_v(OpenedFileName, EEG_CHANNEL_RIGHT, 1, numPoints);
-    else
-        % No data in right EEG, switch to left
-        fprintf('Did not find any data in right EEG, switching to left.\n');
-        numPoints = continuous_counts(EEG_CHANNEL_LEFT);
-        [adfreq1, n1, EEG_data] = plx_ad_span_v(OpenedFileName, EEG_CHANNEL_LEFT, 1, numPoints);
+        numPoints = continuous_counts(x + offset);
+        if numPoints == 0
+            continue
+        end
+        [adfreq1, n1, EEG_data] = plx_ad_span_v(OpenedFileName, x, 1, numPoints);
+        fprintf('Detected EEG signal in channel %d\n', x);
+        break
     end
     
     % Convert from mV to uV
     EEG_data = EEG_data * 1000;
+    haveEMG = false;
+
+    for x = (EMG_CHANNEL-1):EMG_CHANNEL
+        % Read all data from EEG and EMG channels
+        n2 = continuous_counts(x + offset);
+        if n2 == 0
+            continue
+        end
+        [adfreq2, n2, EMG_data] = plx_ad_span_v(OpenedFileName, x, 1, n2);
+        haveEMG = true;
+        break
+    end
 
     if haveEMG
         % Find the shorter of the two waveforms (generally they should match
         % exactly, so we're being ultra cautious here)
-        numPoints = min(numPoints, continuous_counts(EMG_CHANNEL));
+        numPoints = min(numPoints, n2);
 
-        [adfreq2, n2, EMG_data] = plx_ad_span_v(OpenedFileName, EMG_CHANNEL - offset, 1, numPoints);
         % Convert from mV to uV
         EMG_data = EMG_data * 1000;
-    else
-        EMG_data = [];
     end
     
     % Close all open files
@@ -96,7 +101,7 @@ function [EEG_data, EMG_data, adfreq1, DateTime, OpenedFileName] = EEG_read()
         fprintf('Warning: no EMG data found.\n');
     end    
   
-    fprintf('\nSuccessfully read EEG/EMG from file %s\n', OpenedFileName);
+    fprintf('\nSuccessfully read EEG/EMG from file \"%s\"\n', OpenedFileName);
     fprintf('Data has %d samples, sample rate is %d Hz.\n', n1, adfreq1);
 
     if adfreq1 >= 250

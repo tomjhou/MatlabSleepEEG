@@ -1,7 +1,8 @@
 
 %
-% Returns two column vectors
-% 
+% Reads PLX file, and returns EEG_data variable of size nPoints x nChans,
+% where nChans is the number of EEG channels detected, and nPoints is the
+% length of the channels (all must be of same length).
 %
 
 function [EEG_data, adfreq, DateTime, OpenedFileName] = EEG_read_multichannel()
@@ -30,8 +31,9 @@ function [EEG_data, adfreq, DateTime, OpenedFileName] = EEG_read_multichannel()
     [n, channel_ID] = plx_ad_chanmap(OpenedFileName);
 
     if channel_ID(1) == 0
-        % Channel map starts with channel 0 (not used), so we have to add one to all
-        % indexes.
+        % Channel map starts with channel 0 (not used), so we have to add
+        % one to channel ID to get position in map. Conversely, we have to
+        % subtract one from map position to get channel ID.
         offset = 1;
     else
         offset = 0;
@@ -42,13 +44,13 @@ function [EEG_data, adfreq, DateTime, OpenedFileName] = EEG_read_multichannel()
 
     numPoints = -1;
 
-    for x = 1:n
-        numPoints1 = continuous_counts(x + offset);
+    for x = 1:n % Loop variable is map position, with is usually = chan ID but not always!
+        numPoints1 = continuous_counts(x);
         if numPoints1 == 0
             continue
         end
 
-        [adfreq1, n1, EEG_data1] = plx_ad_span_v(OpenedFileName, x, 1, numPoints1);
+        [adfreq1, n1, EEG_data1] = plx_ad_span_v(OpenedFileName, x - offset, 1, numPoints1);
 
         if adfreq < 0
             adfreq = adfreq1;
