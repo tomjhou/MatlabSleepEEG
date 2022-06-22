@@ -5,25 +5,6 @@
 % Front-end for sleep analysis programs
 %
 
-%[~, hostname] = system('hostname');
-%if hostname(length(hostname)) == 10
-    % Note: last character of hostname may be ASCII #10, i.e. a newline.
-    % Truncate this so strcmps will work.
-%    hostname = hostname(1:length(hostname) - 1);
-%end
-%if strcmp(hostname, 'TomJhou-Office')
-%    DropBoxDir = 'C:\Users\TomJhou\Dropbox\';
-%elseif strcmp(hostname, 'NeuroSysLLC')
-%    DropBoxDir = 'C:\Users\TomJhou\Dropbox\';
-%end
-% cd(DropBoxDir);
-% if strcmp(hostname, 'TJ64-PC')
-%     cd(DropBoxDir);% 'D:\Dropbox\Jhou lab shared items'; % folder at MUSC
-% %    DropBoxDir = 'C:\Users\TJ64\Documents\My Dropbox\';
-% elseif strcmp(hostname, 'TomJhou-Office')
-%     cd 'E:\_projects\_LHb raw data\'; % folder at MUSC
-% %    DropBoxDir = 'E:\My Dropbox\';
-% end
 
 global thresholdEEG;
 global thresholdEMG;
